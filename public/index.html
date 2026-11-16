@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dhandha AI</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --card: #ffffff; --ink: #1d1b16; --muted: #6b665c; --line: #e4dfd4;
+    --brand: #0f766e; --brand-ink: #ffffff; --warn: #b45309; --bad: #b91c1c; --good: #15803d; --chip: #eef6f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14130f; --card: #1e1c17; --ink: #f2efe8; --muted: #a39d90; --line: #34312a;
+      --brand: #2dd4bf; --brand-ink: #062b27; --warn: #f59e0b; --bad: #f87171; --good: #4ade80; --chip: #1d2e2c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", sans-serif; }
+  header { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; max-width: 760px; margin: 0 auto; }
+  header h1 { font-size: 20px; margin: 0; }
+  header small { color: var(--muted); display: block; font-size: 13px; }
+  nav { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); z-index: 2; }
+  nav div { display: flex; max-width: 760px; margin: 0 auto; overflow-x: auto; }
+  nav button { flex: 1; background: none; border: 0; border-bottom: 3px solid transparent; padding: 12px 8px; font: inherit; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  nav button.on { color: var(--ink); border-color: var(--brand); font-weight: 600; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  section { display: none; } section.on { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .stat b { display: block; font-size: 26px; }
+  .stat span { color: var(--muted); font-size: 14px; }
+  .btn { background: var(--brand); color: var(--brand-ink); border: 0; border-radius: 8px; padding: 10px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  textarea, input, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  textarea { min-height: 96px; resize: vertical; }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; }
+  label small { font-weight: 400; color: var(--muted); }
+  .check { display: flex; gap: 10px; align-items: center; font-weight: 500; }
+  .check input { width: 20px; height: 20px; }
+  .muted { color: var(--muted); }
+  .stars { color: #eab308; letter-spacing: 1px; }
+  .chip { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--brand); font-weight: 600; }
+  .chip.pending { color: var(--warn); } .chip.skipped { color: var(--muted); }
+  .quote { margin: 8px 0; white-space: pre-wrap; }
+  .reply { border-left: 3px solid var(--brand); padding-left: 10px; margin-top: 8px; white-space: pre-wrap; }
+  .notice { border-left: 4px solid var(--warn); }
+  .log li { margin-bottom: 6px; } .log time { color: var(--muted); font-size: 13px; margin-right: 6px; }
+  .filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filters button.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 520px; margin: 0 auto; background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 10px; display: none; z-index: 5; }
+  ul { padding-left: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Dhandha AI</h1><small id="bizName">Google Business ka AI manager</small></div>
+  <span class="chip" id="modeChip"></span>
+</header>
+<nav><div>
+  <button data-tab="home" class="on">Home</button>
+  <button data-tab="reviews">Reviews</button>
+  <button data-tab="posts">Posts</button>
+  <button data-tab="settings">Settings</button>
+  <button data-tab="connect">Connect</button>
+</div></nav>
+
+<main>
+  <!-- HOME -->
+  <section id="home" class="on">
+    <div id="setupNotice"></div>
+    <div class="grid" id="stats"></div>
+    <div class="card">
+      <div class="row">
+        <button class="btn" id="syncBtn">Reviews abhi check karo</button>
+        <button class="btn ghost" id="genBtnHome">Nayi post banao</button>
+      </div>
+    </div>
+    <div class="card">
+      <b>Kya-kya hua</b>
+      <ul class="log" id="log"></ul>
+    </div>
+  </section>
+
+  <!-- REVIEWS -->
+  <section id="reviews">
+    <div class="filters">
+      <button class="btn ghost on" data-filter="pending">Approval baaki</button>
+      <button class="btn ghost" data-filter="replied">Reply ho gaya</button>
+      <button class="btn ghost" data-filter="all">Sab</button>
+    </div>
+    <div id="reviewList"></div>
+  </section>
+
+  <!-- POSTS -->
+  <section id="posts">
+    <div class="card">
+      <p class="muted" style="margin-top:0">Roz <b id="postTimeLabel"></b> baje AI apne aap ek post Google par daalega. Aap abhi bhi ek post bana sakte hain.</p>
+      <button class="btn" id="genBtn">AI se nayi post likhwao</button>
+    </div>
+    <div id="postList"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings">
+    <form class="card" id="settingsForm">
+      <b>Aapka business</b>
+      <label>Business ka naam</label><input name="businessName">
+      <label>Kis cheez ka business hai <small>(jaise: kirana store, salon, restaurant)</small></label><input name="businessType">
+      <label>Shahar / area</label><input name="city">
+      <label>Business ke baare me <small>(khaasiyat, products, timing, offers — jitna likhenge AI utna achha likhega)</small></label>
+      <textarea name="about"></textarea>
+
+      <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+      <b>Review reply</b>
+      <label class="check"><input type="checkbox" name="autoReplyEnabled"> Apne aap reply bhejo</label>
+      <label>Kitne star ya usse zyada par auto-reply <small>(isse kam wale aapki approval ke liye rukenge)</small></label>
+      <select name="autoReplyMinStars">
+        <option value="1">1★ se upar sab</option><option value="2">2★ aur upar</option><option value="3">3★ aur upar</option>
+        <option value="4">4★ aur upar (sujhav)</option><option value="5">Sirf 5★</option>
+      </select>
+      <label>Reply ki bhasha</label>
+      <select name="replyLanguage">
+        <option value="auto">Jis bhasha me customer ne likha</option><option value="hinglish">Hinglish</option>
+        <option value="hindi">हिंदी</option><option value="english">English</option>
+      </select>
+      <label>Andaaz</label>
+      <select name="replyTone"><option value="friendly">Dostana</option><option value="professional">Professional</option></select>
+
+      <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+      <b>Roz ki post</b>
+      <label class="check"><input type="checkbox" name="dailyPostEnabled"> Roz ek post daalo</label>
+      <label class="check"><input type="checkbox" name="postApproval"> Publish se pehle mujhse poochho</label>
+      <label>Post ka time</label><input type="time" name="postTime">
+      <label>Post ki bhasha</label>
+      <select name="postLanguage"><option value="hinglish">Hinglish</option><option value="hindi">हिंदी</option><option value="english">English</option></select>
+      <label>Kin topics par post ho</label><textarea name="postTopics" style="min-height:64px"></textarea>
+
+      <div style="margin-top:18px"><button class="btn" type="submit">Save karo</button></div>
+    </form>
+  </section>
+
+  <!-- CONNECT -->
+  <section id="connect">
+    <div class="card" id="connectBox"></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "class") el.className = v;
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return el;
+};
+let state = null;
+let reviewFilter = "pending";
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 4000);
+}
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Kuch gadbad hui");
+  return data;
+}
+async function busy(btn, fn) {
+  btn.disabled = true;
+  try { await fn(); } catch (e) { toast(e.message); } finally { btn.disabled = false; }
+}
+const stars = (n) => "★".repeat(n) + "☆".repeat(5 - n);
+const when = (iso) => iso ? new Date(iso).toLocaleString("hi-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+
+// ---------- Tabs ----------
+function showTab(name) {
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("section").forEach((s) => s.classList.toggle("on", s.id === name));
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  if (name === "reviews") loadReviews();
+  if (name === "posts") loadPosts();
+  if (name === "connect") renderConnect();
+}
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+// ---------- Home ----------
+async function loadStatus() {
+  state = await api("/api/status");
+  $("#bizName").textContent = state.locationTitle || "Google Business ka AI manager";
+  $("#modeChip").textContent = state.demo ? "Demo mode" : state.connected ? "Connected" : "Connect nahi hai";
+  const s = state.stats;
+  $("#stats").replaceChildren(
+    ...[[s.pending, "Approval baaki"], [s.reviews, "Kul reviews"], [s.avgStars, "Average ★"], [s.autoReplied, "Auto-reply gaye"], [s.postsPublished, "Posts publish"]]
+      .map(([n, l]) => h("div", { class: "stat" }, h("b", {}, n), h("span", {}, l))),
+  );
+  const notes = [];
+  if (state.demo) notes.push("Abhi demo mode chal raha hai (nakli reviews). Asli Google business jodne ke liye README me diye steps follow karein.");
+  if (!state.aiReady) notes.push("AI key (ANTHROPIC_API_KEY) nahi daali gayi, isliye simple template replies ban rahe hain.");
+  if (!state.passwordSet) notes.push("Dashboard par password nahi hai. .env me DASHBOARD_PASSWORD zaroor set karein.");
+  if (!state.connected) notes.push("Google business abhi chuna nahi gaya. 'Connect' tab me jaakar chunein.");
+  $("#setupNotice").replaceChildren(...(notes.length ? [h("div", { class: "card notice" }, h("ul", { style: "margin:0" }, notes.map((n) => h("li", {}, n))))] : []));
+  $("#log").replaceChildren(...(state.log.length ? state.log.map((l) => h("li", {}, h("time", {}, when(l.at)), l.message)) : [h("li", { class: "muted" }, "Abhi tak kuch nahi hua.")]));
+  $("#postTimeLabel").textContent = state.settings.postTime;
+  fillSettings(state.settings);
+}
+$("#syncBtn").addEventListener("click", (e) => busy(e.target, async () => {
+  const r = await api("/api/reviews/sync", {});
+  toast(r.busy ? "Reviews pehle se check ho rahe hain, thodi der me dekhein." : r.total !== undefined ? `${r.total} reviews check kiye, ${r.autoReplied} auto-reply gaye, ${r.pending} approval baaki.` : "Pehle Google business connect karein.");
+  await loadStatus();
+}));
+
+// ---------- Reviews ----------
+document.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
+  reviewFilter = b.dataset.filter;
+  document.querySelectorAll("[data-filter]").forEach((x) => x.classList.toggle("on", x === b));
+  loadReviews();
+}));
+async function loadReviews() {
+  const all = await api("/api/reviews");
+  const list = all.filter((r) => reviewFilter === "all" || r.status === reviewFilter || (reviewFilter === "pending" && r.status === "new"));
+  $("#reviewList").replaceChildren(...(list.length ? list.map(reviewCard) : [h("div", { class: "card muted" }, reviewFilter === "pending" ? "Koi review approval ke liye baaki nahi hai. 🎉" : "Koi review nahi.")]));
+}
+function reviewCard(r) {
+  const head = h("div", { class: "row", style: "justify-content:space-between" },
+    h("div", {}, h("b", {}, r.author), " ", h("span", { class: "stars" }, stars(r.stars))),
+    h("span", { class: "chip " + r.status }, { replied: "Reply gaya" + (r.repliedBy === "auto" ? " (auto)" : ""), pending: "Approval baaki", skipped: "Chhod diya", new: "Naya" }[r.status] || r.status));
+  const body = [head, h("div", { class: "muted", style: "font-size:13px" }, when(r.createTime)),
+    h("div", { class: "quote" }, r.comment || "(sirf star diye, kuch likha nahi)")];
+  if (r.status === "replied") {
+    body.push(h("div", { class: "reply" }, r.reply));
+  } else {
+    const ta = h("textarea", {}); ta.value = r.draft || "";
+    const card = h("div", { class: "card" }, ...body,
+      h("label", {}, "AI ka likha reply ", h("small", {}, "(badal sakte hain)")), ta,
+      h("div", { class: "row", style: "margin-top:8px" },
+        h("button", { class: "btn", onclick: (e) => busy(e.target, async () => { await api(`/api/reviews/${encodeURIComponent(r.id)}/reply`, { text: ta.value }); toast("Reply bhej diya ✅"); await Promise.all([loadReviews(), loadStatus()]); }) }, "Reply bhejo"),
+        h("button", { class: "btn ghost", onclick: (e) => busy(e.target, async () => { const x = await api(`/api/reviews/${encodeURIComponent(r.id)}/draft`, {}); ta.value = x.draft; }) }, "Naya reply likho"),
+        h("button", { class: "btn ghost", onclick: (e) => busy(e.target, async () => { await api(`/api/reviews/${encodeURIComponent(r.id)}/skip`, {}); await Promise.all([loadReviews(), loadStatus()]); }) }, "Chhod do")));
+    return card;
+  }
+  return h("div", { class: "card" }, ...body);
+}
+
+// ---------- Posts ----------
+async function genPost(btn) {
+  await busy(btn, async () => { await api("/api/posts/generate", {}); toast("Post ka draft ban gaya, neeche dekhein."); showTab("posts"); await loadStatus(); });
+}
+$("#genBtn").addEventListener("click", (e) => genPost(e.target));
+$("#genBtnHome").addEventListener("click", (e) => genPost(e.target));
+async function loadPosts() {
+  const posts = await api("/api/posts");
+  $("#postList").replaceChildren(...(posts.length ? posts.map(postCard) : [h("div", { class: "card muted" }, "Abhi tak koi post nahi.")]));
+}
+function postCard(p) {
+  if (p.status === "published") {
+    return h("div", { class: "card" },
+      h("div", { class: "row", style: "justify-content:space-between" }, h("span", { class: "chip" }, "Publish ho gayi"), h("span", { class: "muted", style: "font-size:13px" }, when(p.publishedAt))),
+      h("div", { class: "quote" }, p.text),
+      p.url ? h("a", { href: p.url, target: "_blank", rel: "noopener" }, "Google par dekhein") : null);
+  }
+  const ta = h("textarea", { style: "min-height:160px" }); ta.value = p.text;
+  return h("div", { class: "card" },
+    h("div", { class: "row", style: "justify-content:space-between" }, h("span", { class: "chip pending" }, "Draft"), h("span", { class: "muted", style: "font-size:13px" }, when(p.createdAt))),
+    h("label", {}, "Post ", h("small", {}, "(badal sakte hain, 1500 characters tak)")), ta,
+    h("div", { class: "row", style: "margin-top:8px" },
+      h("button", { class: "btn", onclick: (e) => busy(e.target, async () => { await api(`/api/posts/${p.id}/publish`, { text: ta.value }); toast("Post Google par chali gayi ✅"); await Promise.all([loadPosts(), loadStatus()]); }) }, "Google par daalo"),
+      h("button", { class: "btn ghost", onclick: (e) => busy(e.target, async () => { await api(`/api/posts/${p.id}/delete`, {}); await loadPosts(); }) }, "Hata do")));
+}
+
+// ---------- Settings ----------
+function fillSettings(s) {
+  const f = $("#settingsForm");
+  if (f.dataset.dirty) return;
+  for (const [k, v] of Object.entries(s)) {
+    const el = f.elements[k]; if (!el) continue;
+    if (el.type === "checkbox") el.checked = Boolean(v); else el.value = v;
+  }
+}
+$("#settingsForm").addEventListener("input", (e) => (e.currentTarget.dataset.dirty = "1"));
+$("#settingsForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, data = {};
+  for (const el of f.elements) if (el.name) data[el.name] = el.type === "checkbox" ? el.checked : el.value;
+  await busy(f.querySelector("button"), async () => { await api("/api/settings", data); delete f.dataset.dirty; toast("Settings save ho gayi ✅"); await loadStatus(); });
+});
+
+// ---------- Connect ----------
+async function renderConnect() {
+  const box = $("#connectBox");
+  if (!state) await loadStatus();
+  const parts = [h("b", {}, "Google Business Profile")];
+  if (!state.demo && !state.hasLogin) {
+    parts.push(h("p", {}, "Apne Google account se login karein jisme aapka business hai."),
+      h("a", { class: "btn", href: "/auth/google", style: "display:inline-block;text-decoration:none" }, "Google se connect karo"));
+    return box.replaceChildren(...parts);
+  }
+  parts.push(h("p", { class: "muted" }, state.connected ? `Abhi chuna hua business: ${state.locationTitle}` : "Neeche se apna business chunein:"));
+  box.replaceChildren(...parts, h("p", { class: "muted" }, "Business list la rahe hain..."));
+  try {
+    const locs = await api("/api/locations");
+    const list = locs.length ? locs.map((l) => h("div", { class: "row", style: "justify-content:space-between;border-top:1px solid var(--line);padding:10px 0" },
+      h("div", {}, h("b", {}, l.title), h("div", { class: "muted", style: "font-size:13px" }, l.address)),
+      h("button", { class: "btn", onclick: (e) => busy(e.target, async () => { await api("/api/location", l); toast("Business jud gaya ✅ Reviews aa rahe hain..."); await loadStatus(); renderConnect(); }) }, state.locationTitle === l.title ? "Dobara chuno" : "Ye chuno")))
+      : [h("p", {}, "Is Google account me koi business nahi mila.")];
+    const extra = state.demo ? [] : [h("button", { class: "btn ghost", style: "margin-top:12px", onclick: (e) => busy(e.target, async () => { if (!confirm("Google account hata dein?")) return; await api("/api/disconnect", {}); await loadStatus(); renderConnect(); }) }, "Disconnect")];
+    box.replaceChildren(...parts, ...list, ...extra);
+  } catch (e) {
+    box.replaceChildren(...parts, h("p", { style: "color:var(--bad)" }, e.message));
+  }
+}
+
+const TABS = ["home", "reviews", "posts", "settings", "connect"];
+const tabFromHash = () => { const t = (location.hash || "#home").slice(1); return TABS.includes(t) ? t : "home"; };
+window.addEventListener("hashchange", () => showTab(tabFromHash()));
+loadStatus().then(() => showTab(tabFromHash())).catch((e) => toast(e.message));
+setInterval(() => { if ($("#home").classList.contains("on")) loadStatus().catch(() => {}); }, 30000);
+</script>
+</body>
+</html>
