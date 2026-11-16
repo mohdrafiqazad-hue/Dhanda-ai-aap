@@ -28,6 +28,9 @@ function fresh() {
     google: { tokens: null, accountName: null, locationName: null, locationTitle: null },
     reviews: {}, // reviewId -> review record
     posts: [], // newest first
+    photos: [], // aapki upload ki hui photos (post ke saath lagti hain)
+    reviewSummary: null, // Google se: kul reviews aur average rating
+    insights: null, // growth report ka cache
     lastPostDate: null,
     log: [],
   };
@@ -62,7 +65,7 @@ export function log(message) {
   db.log.unshift({ at: new Date().toISOString(), message });
   db.log = db.log.slice(0, 200);
   save();
-  console.log(`[dhandha] ${message}`);
+  console.log(`[my-business-manager] ${message}`);
 }
 
 export function updateSettings(patch) {

@@ -1,7 +1,7 @@
 {
-  "name": "dhandha-ai",
+  "name": "my-business-manager",
   "version": "1.0.0",
-  "description": "Google Business Profile ko AI se manage karne wala app: reviews ka auto-reply aur roz ki posts.",
+  "description": "My Business Manager: Google Business Profile ko AI se sambhalne wala app (review reply, roz post, profile score, growth report).",
   "type": "module",
   "main": "src/server.js",
   "scripts": {

@@ -7,10 +7,14 @@ import { getDb, save, log, updateSettings } from "./store.js";
 import * as google from "./google.js";
 import * as ai from "./ai.js";
 import * as jobs from "./jobs.js";
+import { computeAudit } from "./audit.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json({ limit: "100kb" }));
+
+// ---------- Uploaded photos: public, taaki Google inhe download kar sake (naam random hain) ----------
+app.use("/uploads", express.static(jobs.UPLOAD_DIR, { index: false, maxAge: "7d" }));
 
 // ---------- Google OAuth callback (password check se pehle, state se protected) ----------
 app.get("/oauth/callback", async (req, res) => {
@@ -33,7 +37,7 @@ app.use((req, res, next) => {
   const a = crypto.createHash("sha256").update(given).digest();
   const b = crypto.createHash("sha256").update(PASSWORD).digest();
   if (crypto.timingSafeEqual(a, b)) return next();
-  res.set("WWW-Authenticate", 'Basic realm="Dhandha AI"').status(401).send("Password chahiye");
+  res.set("WWW-Authenticate", 'Basic realm="My Business Manager"').status(401).send("Password chahiye");
 });
 
 app.use(express.static(path.join(here, "..", "public")));
@@ -111,9 +115,47 @@ app.post("/api/reviews/:id/reply", wrap((req) => jobs.sendReply(req.params.id, r
 app.post("/api/reviews/:id/skip", wrap((req) => jobs.skipReview(req.params.id)));
 
 app.get("/api/posts", wrap(() => getDb().posts));
-app.post("/api/posts/generate", wrap(() => jobs.generatePost()));
+app.post("/api/posts/generate", wrap((req) => jobs.generatePost(req.body?.photoId || undefined)));
 app.post("/api/posts/:id/publish", wrap((req) => jobs.publishPost(req.params.id, req.body?.text)));
 app.post("/api/posts/:id/delete", wrap((req) => jobs.deletePost(req.params.id)));
+
+// Photos
+app.get("/api/photos", wrap(() => getDb().photos));
+app.post("/api/photos", express.raw({ type: ["image/jpeg", "image/png"], limit: "5mb" }), wrap((req) => {
+  if (!Buffer.isBuffer(req.body) || !req.body.length) throw new Error("Sirf JPG ya PNG photo chalegi.");
+  const photo = jobs.savePhoto(req.body);
+  log("Nayi photo upload hui.");
+  return photo;
+}));
+app.post("/api/photos/:id/delete", wrap((req) => jobs.deletePhoto(req.params.id)));
+
+// Profile score
+app.get("/api/audit", wrap(async () => {
+  if (!google.isConnected()) throw new Error("Pehle Google business connect karein.");
+  return computeAudit(await google.getProfile(), getDb());
+}));
+app.post("/api/audit/description", wrap(async () => {
+  const profile = await google.getProfile();
+  return { text: await ai.draftDescription(getDb().settings, profile) };
+}));
+app.post("/api/profile/description", wrap(async (req) => {
+  const text = String(req.body?.text || "").trim();
+  if (!text) throw new Error("Description khaali hai.");
+  if (text.length > 750) throw new Error("Description 750 akshar se lambi nahi ho sakti.");
+  await google.updateDescription(text);
+  log("Google par business description update ki gayi.");
+}));
+
+// Growth report
+app.get("/api/report", wrap(() => jobs.getInsights()));
+app.post("/api/report/refresh", wrap(() => jobs.getInsights({ force: true })));
+
+// Badi photo ya galat JSON par bhi saaf message
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const msg = err.type === "entity.too.large" ? "Photo 5 MB se badi nahi honi chahiye." : err.message || "Kuch gadbad hui";
+  res.status(err.status || 400).json({ error: msg });
+});
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -121,7 +163,7 @@ function escapeHtml(s) {
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
-  console.log(`Dhandha AI chal raha hai: http://localhost:${port}`);
+  console.log(`My Business Manager chal raha hai: http://localhost:${port}`);
   if (google.isDemo()) console.log("Demo mode: GOOGLE_CLIENT_ID/SECRET set nahi hai, nakli reviews dikhenge.");
   if (!ai.aiReady()) console.log("ANTHROPIC_API_KEY set nahi hai, AI ki jagah simple template text use hoga.");
   if (!PASSWORD) console.log("Chetavani: DASHBOARD_PASSWORD set nahi hai.");
